@@ -9,7 +9,7 @@
   (throw (Exception. msg)))
 
 (def empty-begin
-  "An arbitrary value returned by an empty a begin sequence
+  "An arbitrary value returned by an empty begin sequence
   pg10"
   813)
 
@@ -45,19 +45,20 @@
     (wrong "No such binding" id)))
 
 (defn extend-env
-  "Note that this is called `extend` in LiSP, but here we call it `extend-env` to
-  avoid conflict with `clojure.core/extend`.
+  "1. Clojure doesn't have the ability to form an improper list, so we can't
+  represent all the forms that an abstraction can take in Scheme (as described
+  at the bottom of page 14) without creating our own versions of lists. Rather
+  than doing this we simply reduce the accepted forms that the variable list
+  that function application can take to be a proper list.
+  TODO: we could do a symbol here though, right?
+
+  2. Note that this function is called `extend` in LiSP, but here we call it
+  `extend-env` to avoid conflict with `clojure.core/extend`.
   pg14"
   [env variables values]
-  (cond
-    (seq? variables) (if (seq? values)
-                       (cons (cons (first variables) (first values))
-                             (extend-env env (rest variables) (rest values)))
-                       (wrong "Too few values"))
-    (empty? variables) (if (empty values)
-                         env
-                         (wrong "Too many values"))
-    (symbol? variables) (cons (cons variables values) env)))
+  (if (= (count variables) (count values))
+    (into env (zipmap variables values))
+    (wrong "The number of variables does not match the number of values")))
 
 (defn invoke
   "pg 15"
@@ -127,21 +128,21 @@
 (defprimitive eq? = 2)
 (defprimitive < < 2)
 
-;; (defn evaluate
-;;   "The interpreter evaluator. pg7"
-;;   [e env]
-;;   (if-not (seq? e)
-;;     (cond
-;;       (symbol? e) (lookup e env)
-;;       (or (number? e) (string? e) (char? e) (boolean? e) (vector? e)) e
-;;       :else (wrong "Cannot evaluate" e))
-;;     (case (first e)
-;;       quote (nth e 1)
-;;       if (if (evaluate (nth e 1) env)
-;;            (evaluate (nth e 2) env)
-;;            (evaluate (nth e 3) env))
-;;       begin (eprogn (rest e) env)
-;;       set! (update (nth e 1) env (evaluate (nth e 2) env))
-;;       lambda (make-function (nth e 1) (nth e 2) env)
-;;       else (invoke (evaluate (first e) env)
-;;                    (evlis (rest e) env)))))
+(defn evaluate
+  "The interpreter evaluator. pg7"
+  [e env]
+  (if-not (seq? e)
+    (cond
+      (symbol? e) (lookup e env)
+      (or (number? e) (string? e) (char? e) (boolean? e) (vector? e)) e
+      :else (wrong "Cannot evaluate" e))
+    (case (first e)
+      quote (nth e 1)
+      if (if (evaluate (nth e 1) env)
+           (evaluate (nth e 2) env)
+           (evaluate (nth e 3) env))
+      begin (eprogn (rest e) env)
+      set! (update (nth e 1) env (evaluate (nth e 2) env))
+      lambda (make-function (nth e 1) (nth e 2) env)
+      else (invoke (evaluate (first e) env)
+                   (evlis (rest e) env)))))
