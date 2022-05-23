@@ -1,13 +1,23 @@
-(ns lisp-in-small-pieces.core)
+(ns lisp-in-small-pieces.core
+  ;; (:require [lisp-in-small-pieces.primops-construction :refer :all])
+  )
+
+(defn wrong
+  "Note: not defined in LiSP"
+  [msg & args]
+  ;; (throw (Exception. (map pr-str args) msg))
+  (throw (Exception. msg)))
 
 (def empty-begin
-  "An arbitrary value returned by an empty a begin sequence. pg10"
+  "An arbitrary value returned by an empty a begin sequence
+  pg10"
   813)
 
 (declare evaluate)
 
 (defn eprogn
-  "Evaluates a sequence form. pg10"
+  "Evaluates a sequence form.
+  pg10"
   [exps env]
   (if (seq? exps)
     (if (seq? (rest exps))
@@ -24,10 +34,6 @@
           (evlis (rest exps) env))
     ()))
 
-(defn wrong [msg & args]
-  ;; (throw (Exception. (map pr-str args) msg))
-  (throw (Exception. msg)))
-
 (defn lookup
   "pg 13"
   [id env]
@@ -38,18 +44,88 @@
         (lookup id (rest env))))
     (wrong "No such binding" id)))
 
-(defn extend
-  "pg14"
+(defn extend-env
+  "Note that this is called `extend` in LiSP, but here we call it `extend-env` to
+  avoid conflict with `clojure.core/extend`.
+  pg14"
   [env variables values]
   (cond
     (seq? variables) (if (seq? values)
                        (cons (cons (first variables) (first values))
-                             (extend env (rest variables) (rest values)))
+                             (extend-env env (rest variables) (rest values)))
                        (wrong "Too few values"))
     (empty? variables) (if (empty values)
                          env
                          (wrong "Too many values"))
     (symbol? variables) (cons (cons variables values) env)))
+
+(defn invoke
+  "pg 15"
+  [fn args]
+  (if (fn? fn)
+    (fn args)
+    (wrong "Not a function" fn)))
+
+(defn make-function
+  "pg 19"
+  [variables body env]
+  (fn [values]
+    (eprogn body (extend-env env variables values))))
+
+;; (defmacro definitial [name value void]
+;;   `(define env-global (en#tuple ['~name ~value]
+;;                                 apply env-global)))
+
+;; (defmacro defprimitive (name value arity)
+;;   `(definitial ,name
+;;      (lambda ($#values)
+;;        (if-else (eq ,arity (len $#values))
+;;          (,value : :* $#values)
+;;          (throw (TypeError (.format "Incorrect arity {}"
+;;                                     (en#tuple ,name $#values))))))))
+
+(def env-init ())
+(def env-global "pg25" env-init)
+
+;; Lifted from https://github.com/jumarko/lisp-in-small-pieces/blob/c219ff1354366f285000c3efcaabea87cc209a68/clojure/src/ch01_evaluator.clj#L576
+(defmacro definitial
+  "Defines a new symbol in the global environment bound to given value
+  or 'ch01-evaluator/void if no value is provided."
+  ([name]
+   ;; (prn name) ; the value of name
+   ;; (prn (type name)) ; clojure.lang.Symbol
+   ;; since definitial is a macro, simply ~name will do the job
+   `(definitial ~name :ch01-evaluator/void))
+  ([name value]
+   ;; notice how we use `extend` instead of relying on internal env structure
+   `(alter-var-root #'env-global #(extend-env % ['~name] [~value]))))
+
+;; Lifted from https://github.com/jumarko/lisp-in-small-pieces/blob/c219ff1354366f285000c3efcaabea87cc209a68/clojure/src/ch01_evaluator.clj#L607
+(defmacro defprimitive
+  "Defines a primitive operation denoted by the symbol with given name,
+  implemented as function f of given arity."
+  [name f arity]
+  `(definitial
+     ~name
+     (fn [~'values]
+       (if (= ~arity (count ~'values))
+         (apply ~f ~'values)
+         (wrong "Incorrect ~arity" [~f ~'values])))))
+
+
+(definitial t true)
+(definitial f false)
+(definitial nil nil)
+
+;; Add a few functions to the global environment as examples. Note that in LiSP
+;; the function `set-cdr!` is also defined, but since this requires a little bit
+;; more effort in Clojure we skip this function
+;; pg 27
+(defprimitive cons cons 2)
+(defprimitive car first 1)
+(defprimitive + + 2)
+(defprimitive eq? = 2)
+(defprimitive < < 2)
 
 ;; (defn evaluate
 ;;   "The interpreter evaluator. pg7"
