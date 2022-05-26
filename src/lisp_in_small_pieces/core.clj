@@ -50,15 +50,22 @@
   at the bottom of page 14) without creating our own versions of lists. Rather
   than doing this we simply reduce the accepted forms that the variable list
   that function application can take to be a proper list.
-  TODO: we could do a symbol here though, right?
-
-  2. Note that this function is called `extend` in LiSP, but here we call it
+  2. Note that this function is called 'extend' in LiSP, but here we call it
   `extend-env` to avoid conflict with `clojure.core/extend`.
   pg14"
   [env variables values]
-  (if (= (count variables) (count values))
-    (into env (zipmap variables values))
-    (wrong "The number of variables does not match the number of values")))
+  (if (seq? variables)
+    (if (empty? variables)
+      (if (empty? values)
+        env
+        (wrong "Too many values"))
+      (if (empty? variables)
+        (wrong "The number of variables does not match the number of values")
+        (cons (list (first variables) (first values))
+              (extend-env env (rest variables) (rest values)))))
+    (if (symbol? variables)
+      (cons (list variables values) env)
+      (env))))
 
 (defn invoke
   "pg 15"
@@ -114,19 +121,19 @@
          (wrong "Incorrect ~arity" [~f ~'values])))))
 
 
-(definitial t true)
-(definitial f false)
-(definitial nil nil)
+;; (definitial t true)
+;; (definitial f false)
+;; (definitial nil nil)
 
-;; Add a few functions to the global environment as examples. Note that in LiSP
-;; the function `set-cdr!` is also defined, but since this requires a little bit
-;; more effort in Clojure we skip this function
-;; pg 27
-(defprimitive cons cons 2)
-(defprimitive car first 1)
-(defprimitive + + 2)
-(defprimitive eq? = 2)
-(defprimitive < < 2)
+;; ;; Add a few functions to the global environment as examples. Note that in LiSP
+;; ;; the function `set-cdr!` is also defined, but since this requires a little bit
+;; ;; more effort in Clojure we skip this function
+;; ;; pg 27
+;; (defprimitive cons cons 2)
+;; (defprimitive car first 1)
+;; (defprimitive + + 2)
+;; (defprimitive eq? = 2)
+;; (defprimitive < < 2)
 
 (defn evaluate
   "The interpreter evaluator. pg7"
