@@ -65,7 +65,7 @@
               (extend-env env (rest variables) (rest values)))))
     (if (symbol? variables)
       (cons (list variables values) env)
-      (env))))
+      env)))
 
 (defn invoke
   "pg 15"
@@ -98,7 +98,8 @@
 ;; Lifted from https://github.com/jumarko/lisp-in-small-pieces/blob/c219ff1354366f285000c3efcaabea87cc209a68/clojure/src/ch01_evaluator.clj#L576
 (defmacro definitial
   "Defines a new symbol in the global environment bound to given value
-  or 'ch01-evaluator/void if no value is provided."
+  or 'ch01-evaluator/void if no value is provided.
+  p25"
   ([name]
    ;; (prn name) ; the value of name
    ;; (prn (type name)) ; clojure.lang.Symbol
@@ -106,12 +107,13 @@
    `(definitial ~name :ch01-evaluator/void))
   ([name value]
    ;; notice how we use `extend` instead of relying on internal env structure
-   `(alter-var-root #'env-global #(extend-env % ['~name] [~value]))))
+   `(alter-var-root #'env-global #(extend-env % '~name ~value))))
 
 ;; Lifted from https://github.com/jumarko/lisp-in-small-pieces/blob/c219ff1354366f285000c3efcaabea87cc209a68/clojure/src/ch01_evaluator.clj#L607
 (defmacro defprimitive
   "Defines a primitive operation denoted by the symbol with given name,
-  implemented as function f of given arity."
+  implemented as function f of given arity.
+  p25"
   [name f arity]
   `(definitial
      ~name
@@ -120,20 +122,21 @@
          (apply ~f ~'values)
          (wrong "Incorrect ~arity" [~f ~'values])))))
 
+;; Note that we've changed the original verison in LiSP from  nil to NIL
+;; p26
+(definitial t true)
+(definitial f false)
+(definitial NIL "asdf")
 
-;; (definitial t true)
-;; (definitial f false)
-;; (definitial nil nil)
-
-;; ;; Add a few functions to the global environment as examples. Note that in LiSP
-;; ;; the function `set-cdr!` is also defined, but since this requires a little bit
-;; ;; more effort in Clojure we skip this function
-;; ;; pg 27
-;; (defprimitive cons cons 2)
-;; (defprimitive car first 1)
-;; (defprimitive + + 2)
-;; (defprimitive eq? = 2)
-;; (defprimitive < < 2)
+;; Add a few functions to the global environment as examples. Note that in LiSP
+;; the function `set-cdr!` is also defined, but since this requires a little bit
+;; more effort in Clojure we skip this function
+;; pg 27
+(defprimitive cons cons 2)
+(defprimitive car first 1)
+(defprimitive + + 2)
+(defprimitive eq? = 2)
+(defprimitive < < 2)
 
 (defn evaluate
   "The interpreter evaluator. pg7"
